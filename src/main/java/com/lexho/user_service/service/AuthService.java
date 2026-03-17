@@ -1,51 +1,52 @@
 package com.lexho.user_service.service;
 
-import com.lexho.user_service.entity.Otp;
+import com.lexho.user_service.config.JwtUtil;
 import com.lexho.user_service.entity.User;
-import com.lexho.user_service.repository.OtpRepository;
 import com.lexho.user_service.repository.UserRepository;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Random;
 
 @Service
 public class AuthService {
 
-        private final OtpService otpService;
-        private final UserRepository userRepository;
+    private final OtpService otpService;
+    private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
-        public AuthService(OtpService otpService, UserRepository userRepository) {
-            this.otpService = otpService;
-            this.userRepository = userRepository;
-        }
-
-        // 🔹 Send OTP
-        public String sendOtp(String phone) {
-            return otpService.generateOtp(phone); // 🔥 delegate
-        }
-
-        // 🔹 Verify OTP
-        public String verifyOtp(String phone, String otpValue) {
-
-            boolean isValid = otpService.verifyOtp(phone, otpValue);
-
-            if (!isValid) {
-                return "Invalid or Expired OTP";
-            }
-
-            // Check user exist
-            return userRepository.findByPhone(phone)
-                    .map(user -> "Login Successful")
-                    .orElseGet(() -> {
-                        User newUser = new User();
-                        newUser.setPhone(phone);
-                        newUser.setRole("USER");
-
-                        userRepository.save(newUser);
-                        return "User Registered & Login Successful";
-                    });
-        }
+    // ✅ FIXED constructor
+    public AuthService(OtpService otpService,
+                       UserRepository userRepository,
+                       JwtUtil jwtUtil) {
+        this.otpService = otpService;
+        this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
     }
 
+    // 🔹 Send OTP
+    public String sendOtp(String phone) {
+        return otpService.generateOtp(phone);
+    }
+
+    // 🔹 Verify OTP + JWT
+    public String verifyOtp(String phone, String otpValue) {
+
+        boolean isValid = otpService.verifyOtp(phone, otpValue);
+
+        if (!isValid) {
+            return "Invalid or Expired OTP";
+        }
+
+        // 🔥 User find / create
+        User user = userRepository.findByPhone(phone)
+                .orElseGet(() -> {
+                    User newUser = new User();
+                    newUser.setPhone(phone);
+                    newUser.setRole("USER");
+                    return userRepository.save(newUser);
+                });
+
+        // 🔥 Token generate (correct place)
+        String token = jwtUtil.generateToken(user.getPhone());
+
+        return "Login Successful | Token: " + token;
+    }
+}
