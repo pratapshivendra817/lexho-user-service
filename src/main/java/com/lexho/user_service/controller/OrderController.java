@@ -1,5 +1,6 @@
 package com.lexho.user_service.controller;
 
+import com.lexho.user_service.dto.PlaceOrderRequest;
 import com.lexho.user_service.entity.Order;
 import com.lexho.user_service.enums.OrderStatus;
 import com.lexho.user_service.service.OrderService;
@@ -35,6 +36,13 @@ public class OrderController {
     public Order updateStatus(@PathVariable Long id,
                               @RequestParam OrderStatus status) {
         return orderService.updateStatus(id, status);
+    }
+    @PostMapping("/place")
+    public Order placeOrder(@RequestBody PlaceOrderRequest request) {
+
+        Long userId = 1L; // later JWT
+
+        return orderService.placeOrder(userId, request);
     }
 
     // 🔹 Cancel order

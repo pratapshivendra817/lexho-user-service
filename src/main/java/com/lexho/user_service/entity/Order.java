@@ -3,7 +3,15 @@ package com.lexho.user_service.entity;
 import com.lexho.user_service.enums.OrderStatus;
 import com.lexho.user_service.enums.PaymentStatus;
 import jakarta.persistence.*;
+import lombok.*;
 
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "orders")
 public class Order {
@@ -22,6 +30,9 @@ public class Order {
     private PaymentStatus paymentStatus;
 
     private String address;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    private List<OrderItem> items;
 
     // 🔥 GETTER SETTER (IMPORTANT)
     public OrderStatus getStatus() {
