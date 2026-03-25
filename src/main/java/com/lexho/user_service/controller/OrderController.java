@@ -1,53 +1,43 @@
 package com.lexho.user_service.controller;
 
-import com.lexho.user_service.dto.PlaceOrderRequest;
-import com.lexho.user_service.entity.Order;
+import com.lexho.user_service.dto.*;
 import com.lexho.user_service.enums.OrderStatus;
 import com.lexho.user_service.service.OrderService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/orders")
+@RequiredArgsConstructor
 public class OrderController {
 
-    private OrderService orderService;  // ❗ final hata diya
+    private final OrderService orderService;
 
-    // 🔥 Constructor (Spring injection)
-    public OrderController(OrderService orderService) {
-        this.orderService = orderService;
-    }
-
-    // 🔹 Get order by id
     @GetMapping("/{id}")
-    public Order getOrder(@PathVariable Long id) {
-        return orderService.getOrder(id);
+    public ApiResponse<OrderResponseDTO> getOrder(@PathVariable Long id) {
+        return ApiResponse.success("Order fetched", orderService.getOrder(id));
     }
 
-    // 🔹 Get user orders
     @GetMapping("/user/{userId}")
-    public List<Order> getUserOrders(@PathVariable Long userId) {
-        return orderService.getUserOrders(userId);
+    public ApiResponse<List<OrderResponseDTO>> getUserOrders(@PathVariable Long userId) {
+        return ApiResponse.success("Orders fetched", orderService.getUserOrders(userId));
     }
 
-    // 🔥 Update status
-    @PutMapping("/{id}/status")
-    public Order updateStatus(@PathVariable Long id,
-                              @RequestParam OrderStatus status) {
-        return orderService.updateStatus(id, status);
-    }
     @PostMapping("/place")
-    public Order placeOrder(@RequestBody PlaceOrderRequest request) {
-
-        Long userId = 1L; // later JWT
-
-        return orderService.placeOrder(userId, request);
+    public ApiResponse<OrderResponseDTO> placeOrder(@RequestBody PlaceOrderRequest request) {
+        return ApiResponse.success("Order placed", orderService.placeOrder(1L, request));
     }
 
-    // 🔹 Cancel order
+    @PutMapping("/{id}/status")
+    public ApiResponse<OrderResponseDTO> updateStatus(@PathVariable Long id,
+                                                      @RequestParam OrderStatus status) {
+        return ApiResponse.success("Status updated", orderService.updateStatus(id, status));
+    }
+
     @PutMapping("/{id}/cancel")
-    public Order cancelOrder(@PathVariable Long id) {
-        return orderService.cancelOrder(id);
+    public ApiResponse<OrderResponseDTO> cancelOrder(@PathVariable Long id) {
+        return ApiResponse.success("Order cancelled", orderService.cancelOrder(id));
     }
 }

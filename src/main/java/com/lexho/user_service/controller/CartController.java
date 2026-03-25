@@ -2,19 +2,15 @@ package com.lexho.user_service.controller;
 
 import com.lexho.user_service.dto.*;
 import com.lexho.user_service.service.CartService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/cart")
+@RequiredArgsConstructor // 🔥 cleaner constructor
 public class CartController {
 
     private final CartService cartService;
-
-    public CartController(CartService cartService) {
-        this.cartService = cartService;
-    }
 
     // ➕ ADD
     @PostMapping
@@ -28,15 +24,15 @@ public class CartController {
         );
     }
 
-    // 📦 GET
+    // 📦 GET (UPDATED)
     @GetMapping
-    public ApiResponse<List<CartResponseDTO>> getCart() {
+    public ApiResponse<CartSummaryDTO> getCart() {
 
         Long userId = 1L;
 
         return ApiResponse.success(
                 "Cart fetched",
-                cartService.getCart(userId)
+                cartService.getCart(userId) // 🔥 must return CartSummaryDTO
         );
     }
 

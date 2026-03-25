@@ -1,23 +1,25 @@
 package com.lexho.user_service.entity;
 
 import jakarta.persistence.*;
-        import lombok.*;
+import lombok.*;
 
-@Entity
-@Table(name = "order_items")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Entity
+@Table(name = "order_items")
 public class OrderItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long productId;
-    private String productName;
+    // 🔥 FIXED FIELDS
+    private Long partnerId;
+    private String partnerName;
+
     private Double price;
     private Integer quantity;
 
@@ -25,5 +27,3 @@ public class OrderItem {
     @JoinColumn(name = "order_id")
     private Order order;
 }
-
-

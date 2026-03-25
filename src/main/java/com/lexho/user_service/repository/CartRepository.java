@@ -1,5 +1,6 @@
 package com.lexho.user_service.repository;
 
+
 import com.lexho.user_service.entity.Cart;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,5 +11,5 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
 
     List<Cart> findByUserId(Long userId);
 
-    Optional<Cart> findByUserIdAndPartnerId(Long userId, Long partnerId);
+    Optional<Cart> findByUserIdAndPartnerId(Long userId, Long partnerId); // ✅ FIXED
 }

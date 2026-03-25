@@ -1,9 +1,7 @@
 package com.lexho.user_service.service;
 
-import com.lexho.user_service.dto.PlaceOrderRequest;
-import com.lexho.user_service.entity.Cart;
-import com.lexho.user_service.entity.Order;
-import com.lexho.user_service.entity.OrderItem;
+import com.lexho.user_service.dto.*;
+import com.lexho.user_service.entity.*;
 import com.lexho.user_service.enums.OrderStatus;
 import com.lexho.user_service.enums.PaymentStatus;
 import com.lexho.user_service.repository.CartRepository;
@@ -22,58 +20,34 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
 
-    // 🔹 Get Order by ID
-    public Order getOrder(Long id) {
-        return orderRepository.findById(id)
+    // 🔹 Get Order
+    public OrderResponseDTO getOrder(Long id) {
+        Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+        return mapToDTO(order);
     }
 
-    // 🔹 Get all orders of a user
-    public List<Order> getUserOrders(Long userId) {
-        return orderRepository.findByUserId(userId);
-    }
+    // 🔹 Get user orders
+    public List<OrderResponseDTO> getUserOrders(Long userId) {
+        List<Order> orders = orderRepository.findByUserId(userId);
 
-    // 🔥 STATUS UPDATE
-    public Order updateStatus(Long orderId, OrderStatus newStatus) {
-
-        Order order = getOrder(orderId);
-        OrderStatus currentStatus = order.getStatus();
-
-        if (!currentStatus.canTransitionTo(newStatus)) {
-            throw new IllegalStateException(
-                    "Invalid status transition: " + currentStatus + " → " + newStatus
-            );
+        List<OrderResponseDTO> list = new ArrayList<>();
+        for (Order o : orders) {
+            list.add(mapToDTO(o));
         }
-
-        order.setStatus(newStatus);
-        return orderRepository.save(order);
+        return list;
     }
 
-    // 🔹 CANCEL
-    public Order cancelOrder(Long orderId) {
-
-        Order order = getOrder(orderId);
-
-        if (!order.getStatus().canCancel()) {
-            throw new IllegalStateException("Order cannot be cancelled at this stage");
-        }
-
-        order.setStatus(OrderStatus.CANCELLED);
-        return orderRepository.save(order);
-    }
-
-    // 🔥🔥 MAIN LOGIC (Cart → Order)
+    // 🔥 PLACE ORDER
     @Transactional
-    public Order placeOrder(Long userId, PlaceOrderRequest request) {
+    public OrderResponseDTO placeOrder(Long userId, PlaceOrderRequest request) {
 
-        // 1. Get cart items
         List<Cart> cartItems = cartRepository.findByUserId(userId);
 
         if (cartItems.isEmpty()) {
             throw new RuntimeException("Cart is empty");
         }
 
-        // 2. Create Order
         Order order = new Order();
         order.setUserId(userId);
         order.setStatus(OrderStatus.CREATED);
@@ -83,12 +57,23 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
         double total = 0;
 
-        // 3. Convert cart → order items
         for (Cart cart : cartItems) {
 
+            // ✅ VALIDATION
+            if (cart.getPrice() == null) {
+                throw new RuntimeException("Cart price missing for cartId: " + cart.getId());
+            }
+
+            if (cart.getQuantity() == null || cart.getQuantity() <= 0) {
+                throw new RuntimeException("Invalid quantity for cartId: " + cart.getId());
+            }
+
             OrderItem item = new OrderItem();
-            item.setProductId(cart.getPartnerId());
-            item.setProductName(cart.getPartnerName());
+
+            // 🔥 FIXED (CONSISTENT NAMING)
+            item.setPartnerId(cart.getPartnerId());
+            item.setPartnerName(cart.getPartnerName());
+
             item.setPrice(cart.getPrice());
             item.setQuantity(cart.getQuantity());
             item.setOrder(order);
@@ -101,12 +86,81 @@ public class OrderService {
         order.setItems(orderItems);
         order.setTotalAmount(total);
 
-        // 4. Save Order
         Order savedOrder = orderRepository.save(order);
 
-        // 5. Clear Cart
+        // 🔥 CLEAR CART
         cartRepository.deleteAll(cartItems);
 
-        return savedOrder;
+        return mapToDTO(savedOrder);
+    }
+
+    // 🔥 STATUS UPDATE
+    public OrderResponseDTO updateStatus(Long orderId, OrderStatus newStatus) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
+
+        if (!order.getStatus().canTransitionTo(newStatus)) {
+            throw new IllegalStateException(
+                    "Invalid status transition: " + order.getStatus() + " → " + newStatus
+            );
+        }
+
+        order.setStatus(newStatus);
+
+        return mapToDTO(orderRepository.save(order));
+    }
+
+    // 🔹 CANCEL ORDER
+    public OrderResponseDTO cancelOrder(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
+
+        if (!order.getStatus().canCancel()) {
+            throw new IllegalStateException("Order cannot be cancelled at this stage");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+
+        return mapToDTO(orderRepository.save(order));
+    }
+
+    // 🔥 DTO MAPPER (FINAL SAFE VERSION)
+    public OrderResponseDTO mapToDTO(Order order) {
+
+        OrderResponseDTO dto = new OrderResponseDTO();
+        dto.setId(order.getId());
+        dto.setTotalAmount(order.getTotalAmount());
+        dto.setStatus(order.getStatus().name());
+
+        // ✅ NULL SAFE
+        dto.setPaymentStatus(
+                order.getPaymentStatus() != null
+                        ? order.getPaymentStatus().name()
+                        : "PENDING"
+        );
+
+        dto.setAddress(order.getAddress());
+
+        List<OrderItemDTO> items = new ArrayList<>();
+
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+
+                OrderItemDTO i = new OrderItemDTO();
+
+                // 🔥 FIXED NAMING
+                i.setPartnerName(item.getPartnerName());
+                i.setPrice(item.getPrice());
+                i.setQuantity(item.getQuantity());
+
+                items.add(i);
+            }
+        }
+
+        dto.setItems(items);
+
+        return dto;
     }
 }
