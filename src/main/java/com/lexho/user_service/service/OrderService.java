@@ -1,8 +1,8 @@
 package com.lexho.user_service.service;
 
 import com.lexho.user_service.dto.*;
-import com.lexho.user_service.entity.*;
-import com.lexho.user_service.enums.OrderStatus;
+        import com.lexho.user_service.entity.*;
+        import com.lexho.user_service.enums.OrderStatus;
 import com.lexho.user_service.enums.PaymentStatus;
 import com.lexho.user_service.repository.CartRepository;
 import com.lexho.user_service.repository.OrderRepository;
@@ -19,6 +19,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
+    private final NotificationService notificationService; // 🔔 Notification
 
     // 🔹 Get Order
     public OrderResponseDTO getOrder(Long id) {
@@ -59,7 +60,6 @@ public class OrderService {
 
         for (Cart cart : cartItems) {
 
-            // ✅ VALIDATION
             if (cart.getPrice() == null) {
                 throw new RuntimeException("Cart price missing for cartId: " + cart.getId());
             }
@@ -69,11 +69,8 @@ public class OrderService {
             }
 
             OrderItem item = new OrderItem();
-
-            // 🔥 FIXED (CONSISTENT NAMING)
             item.setPartnerId(cart.getPartnerId());
             item.setPartnerName(cart.getPartnerName());
-
             item.setPrice(cart.getPrice());
             item.setQuantity(cart.getQuantity());
             item.setOrder(order);
@@ -87,6 +84,15 @@ public class OrderService {
         order.setTotalAmount(total);
 
         Order savedOrder = orderRepository.save(order);
+
+        // 🔔 NOTIFICATION (ORDER PLACED)
+        notificationService.send(
+                userId,
+                "Order Placed",
+                "Your order has been placed successfully",
+                "ORDER",
+                savedOrder.getId()
+        );
 
         // 🔥 CLEAR CART
         cartRepository.deleteAll(cartItems);
@@ -108,7 +114,18 @@ public class OrderService {
 
         order.setStatus(newStatus);
 
-        return mapToDTO(orderRepository.save(order));
+        Order updated = orderRepository.save(order);
+
+        // 🔔 NOTIFICATION (STATUS UPDATE)
+        notificationService.send(
+                order.getUserId(),
+                "Order Update",
+                "Your order is now " + newStatus.name(),
+                "ORDER",
+                order.getId()
+        );
+
+        return mapToDTO(updated);
     }
 
     // 🔹 CANCEL ORDER
@@ -123,10 +140,21 @@ public class OrderService {
 
         order.setStatus(OrderStatus.CANCELLED);
 
-        return mapToDTO(orderRepository.save(order));
+        Order updated = orderRepository.save(order);
+
+        // 🔔 NOTIFICATION (CANCEL)
+        notificationService.send(
+                order.getUserId(),
+                "Order Cancelled",
+                "Your order has been cancelled",
+                "ORDER",
+                order.getId()
+        );
+
+        return mapToDTO(updated);
     }
 
-    // 🔥 DTO MAPPER (FINAL SAFE VERSION)
+    // 🔥 DTO MAPPER
     public OrderResponseDTO mapToDTO(Order order) {
 
         OrderResponseDTO dto = new OrderResponseDTO();
@@ -134,7 +162,6 @@ public class OrderService {
         dto.setTotalAmount(order.getTotalAmount());
         dto.setStatus(order.getStatus().name());
 
-        // ✅ NULL SAFE
         dto.setPaymentStatus(
                 order.getPaymentStatus() != null
                         ? order.getPaymentStatus().name()
@@ -149,8 +176,6 @@ public class OrderService {
             for (OrderItem item : order.getItems()) {
 
                 OrderItemDTO i = new OrderItemDTO();
-
-                // 🔥 FIXED NAMING
                 i.setPartnerName(item.getPartnerName());
                 i.setPrice(item.getPrice());
                 i.setQuantity(item.getQuantity());
